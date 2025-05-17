@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Previous CSS and meta tags remain same -->
+    <style>
+        /* Add these new styles */
+        .task-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .task-content {
+            background: white;
+            max-width: 500px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+
+        .withdraw-modal {
+            /* Similar to task-modal */
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Previous auth section remains same -->
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="container py-4" style="display: none;">
+        <!-- Balance Section -->
+        <div class="dashboard-section">
+            <div class="row">
+                <!-- ... (existing balance cards) ... -->
+                <div class="col-md-12 text-end">
+                    <button class="btn btn-success" onclick="showWithdrawModal()">Withdraw</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Navigation -->
+        <div class="dashboard-section">
+            <div class="row">
+                <div class="col-md-6">
+                    <button class="btn btn-outline-success w-100" onclick="showTasks('available')">
+                        Available Tasks
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-outline-success w-100" onclick="showTasks('myTasks')">
+                        My Tasks
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div id="availableTasks" class="dashboard-section">
+            <h4>Available Tasks</h4>
+            <div id="taskList" class="row"></div>
+        </div>
+
+        <!-- My Tasks (Hidden by Default) -->
+        <div id="myTasks" class="dashboard-section" style="display: none;">
+            <h4>My Completed Tasks</h4>
+            <div id="completedTasks"></div>
+        </div>
+
+        <!-- Withdraw Modal -->
+        <div class="task-modal" id="withdrawModal">
+            <div class="task-content">
+                <h4>Withdraw Funds</h4>
+                <div class="mb-3">
+                    <label>Payment Method</label>
+                    <select id="paymentMethod" class="form-select">
+                        <option>JazzCash</option>
+                        <option>EasyPaisa</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Amount (Minimum Rs 50)</label>
+                    <input type="number" id="withdrawAmount" class="form-control">
+                </div>
+                <button class="btn btn-success" onclick="processWithdrawal()">Confirm Withdraw</button>
+                <button class="btn btn-danger" onclick="hideWithdrawModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add these new functions
+        function showWithdrawModal() {
+            if(currentUser.balance < 50) {
+                alert('Minimum withdrawal amount is Rs 50');
+                return;
+            }
+            document.getElementById('withdrawModal').style.display = 'block';
+        }
+
+        function hideWithdrawModal() {
+            document.getElementById('withdrawModal').style.display = 'none';
+        }
+
+        function processWithdrawal() {
+            const amount = parseInt(document.getElementById('withdrawAmount').value);
+            const method = document.getElementById('paymentMethod').value;
+
+            if(amount < 50) {
+                alert('Minimum withdrawal amount is Rs 50');
+                return;
+            }
+
+            if(amount > currentUser.balance) {
+                alert('Insufficient balance');
+                return;
+            }
+
+            // Deduct balance
+            currentUser.balance -= amount;
+            currentUser.withdrawn += amount;
+            
+            // Update local storage
+            const index = users.findIndex(u => u.email === currentUser.email);
+            users[index] = currentUser;
+            localStorage.setItem('users', JSON.stringify(users));
+
+            // Send WhatsApp notification
+            const message = `📤 New Withdrawal Request:%0A
+👤 User: ${currentUser.email}%0A
+💳 Method: ${method}%0A
+💰 Amount: Rs ${amount}%0A
+📊 Balance After: Rs ${currentUser.balance}`;
+
+            window.open(`https://wa.me/923438220191?text=${encodeURIComponent(message)}`, '_blank');
+            
+            alert('Withdrawal request sent! We will process within 24 hours');
+            hideWithdrawModal();
+            updateDashboard();
+        }
+
+        function showTasks(type) {
+            if(type === 'available') {
+                document.getElementById('availableTasks').style.display = 'block';
+                document.getElementById('myTasks').style.display = 'none';
+            } else {
+                document.getElementById('availableTasks').style.display = 'none';
+                document.getElementById('myTasks').style.display = 'block';
+                loadCompletedTasks();
+            }
+        }
+
+        function loadCompletedTasks() {
+            // Implement task completion tracking
+        }
+
+        // Update task buttons in taskList
+        document.getElementById('taskList').innerHTML = tasks.map(task => `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>${task.name}</h5>
+                        <p>Earn Rs ${task.reward}</p>
+                        <button class="btn btn-success" onclick="startTask(${task.reward})">
+                            Start Task
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        function startTask(reward) {
+            currentUser.balance += reward;
+            currentUser.totalEarned += reward;
+            
+            const index = users.findIndex(u => u.email === currentUser.email);
+            users[index] = currentUser;
+            localStorage.setItem('users', JSON.stringify(users));
+            
+            updateDashboard();
+            alert(`Task completed! Rs ${reward} added to your balance`);
+        }
+    </script>
+</body>
+</html>
